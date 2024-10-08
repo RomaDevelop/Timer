@@ -12,8 +12,10 @@
 #include <QDialog>
 #include <QSystemTrayIcon>
 #include <QLabel>
+#include <QMediaPlayer>
+#include <QCheckBox>
 
-class Timer : public QWidget
+class TimerWindow : public QWidget
 {
 	Q_OBJECT
 
@@ -21,9 +23,11 @@ class Timer : public QWidget
 
 	QSystemTrayIcon *icon = nullptr;
 
-	QLineEdit *hours;
-	QLineEdit *minutes;
-	QLineEdit *seconds;
+	QPushButton *btn_control_timer;
+
+	QLineEdit *le_hours;
+	QLineEdit *le_minutes;
+	QLineEdit *le_seconds;
 
 	QSlider *slider_hours;
 	QSlider *slider_minutes;
@@ -36,18 +40,17 @@ class Timer : public QWidget
 
 	QLineEdit *editDesribtion;
 
-	QTimer *checker;
+	QTimer *timer_checker;
+	QMediaPlayer *player;
 
 	std::unique_ptr<QDialog> timeOutWidget;
 
-	std::vector<QWidget *> widgets;
-	std::vector<QWidget *> buttonsSetTimer;
-	std::vector<QWidget *> buttonsContinueTimer;
-
+	std::vector<QWidget *> widgets_to_enable;
 
 public:
-	Timer(QWidget *parent = nullptr);
-	~Timer() = default;
+	TimerWindow(QWidget *parent = nullptr);
+	~TimerWindow() = default;
+
 	void CreateRowTime(int maxValue, QLineEdit *& edit, QSlider *&slider);
 	void CreateTimoutWidget();
 	void ShowTimeoutWidget();
@@ -55,10 +58,21 @@ public:
 
 	void Show();
 
-	void SlotStartTimer();
+	void SlotControlTimer();
 	void SlotTick();
-	void SlotSettings();
+
+	void FinishOpts1();
+	void SetWidgetsEnabled(bool value);
 
 	void closeEvent (QCloseEvent *event) override;
+
+	QString settings_file;
+	QWidget *windowSettings;
+	QCheckBox *chBoxPlaySound;
+	QLineEdit *leSoundFile;
+
+	void CreateSettingsWindow();
+	void LoadSettings();
+	void ConnectSavingWidgets();
 };
 #endif // TIMER_H

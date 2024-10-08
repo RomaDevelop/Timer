@@ -1,13 +1,13 @@
-QT       += core gui widgets
+QT       += core gui widgets multimedia
 
 CONFIG += c++17
 
 SOURCES += \
-    main.cpp \
-    timer.cpp
+    TimerWindow.cpp \
+    main.cpp
 
 HEADERS += \
-    timer.h
+	TimerWindow.h
 
 INCLUDEPATH += ../include
 
