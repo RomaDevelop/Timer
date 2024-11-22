@@ -22,6 +22,8 @@ using namespace std;
 #include <QSettings>
 #include <QComboBox>
 
+#include "MyQWidgetLib.h"
+
 #include "MyQShortings.h"
 #include "MyQDifferent.h"
 
@@ -203,6 +205,10 @@ void TimerWindow::CreateTimoutWidget()
 {
 	timeOutWidget = std::make_unique<QDialog>();
 	timeOutWidget->setWindowFlags(Qt::Tool);
+	timeOutWidget->setWindowFlags(windowFlags()
+								  & ~Qt::WindowCloseButtonHint
+								  & ~Qt::WindowMinimizeButtonHint
+								  & ~Qt::WindowMaximizeButtonHint);
 
 	auto font = timeOutWidget->font();
 	font.setPointSize(14);
@@ -221,16 +227,21 @@ void TimerWindow::CreateTimoutWidget()
 	hlo2->addWidget(btn);
 	connect(btn,&QPushButton::clicked,[this](){
 		timeOutWidget->hide();
+		MyQWidgetLib::SetTopMost(this, false);
 	});
+
+	timeOutWidget->adjustSize();
 }
 
 void TimerWindow::ShowTimeoutWidget()
 {
-	timeOutWidget->adjustSize();
 	timeOutWidget->move(this->x() + (width()-timeOutWidget->width()) / 2,
 						this->y() + (height()-timeOutWidget->height()) / 2);
 
-	QTimer::singleShot(10,[this](){ timeOutWidget->activateWindow(); });
+	QTimer::singleShot(10,[this](){
+		timeOutWidget->activateWindow();
+		MyQWidgetLib::SetTopMost(timeOutWidget.get(), true);
+	});
 	timeOutWidget->exec();
 }
 
@@ -244,11 +255,11 @@ void TimerWindow::CreateTrayIcon()
 	icon->setToolTip("Timer");
 	icon->show();
 	connect(icon, &QSystemTrayIcon::activated, [this](){
-		Show();
+		ShowMainWindow();
 	});
 }
 
-void TimerWindow::Show()
+void TimerWindow::ShowMainWindow()
 {
 	setWindowFlag(Qt::Tool,false);
 	showMinimized();
@@ -290,14 +301,9 @@ void TimerWindow::SlotTick()
 	{
 		FinishOpts1();
 
-		if(chBoxPlaySound->isChecked() && !leSoundFile->text().isEmpty())
-		{
-			player->setMedia(QUrl::fromLocalFile(leSoundFile->text()));
-			player->play();
-		}
+		PlaySound();
 
-		Show();
-		ShowTimeoutWidget();
+		ShowOnTimeOut();
 	}
 	else
 	{
@@ -317,6 +323,22 @@ void TimerWindow::SlotTick()
 		toolTip += text;
 	}
 	icon->setToolTip(toolTip);
+}
+
+void TimerWindow::PlaySound()
+{
+	if(chBoxPlaySound->isChecked() && !leSoundFile->text().isEmpty())
+	{
+		player->setMedia(QUrl::fromLocalFile(leSoundFile->text()));
+		player->play();
+	}
+}
+
+void TimerWindow::ShowOnTimeOut()
+{
+	ShowMainWindow();
+	MyQWidgetLib::SetTopMost(this, true);
+	ShowTimeoutWidget();
 }
 
 void TimerWindow::FinishOpts1()

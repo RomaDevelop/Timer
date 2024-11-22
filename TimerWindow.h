@@ -56,10 +56,16 @@ public:
 	void ShowTimeoutWidget();
 	void CreateTrayIcon();
 
-	void Show();
+	void ShowMainWindow();
 
 	void SlotControlTimer();
+
 	void SlotTick();
+
+	void PlaySound();
+
+	void ShowOnTimeOut();
+
 
 	void FinishOpts1();
 	void SetWidgetsEnabled(bool value);
