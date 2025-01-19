@@ -227,6 +227,7 @@ void TimerWindow::CreateTimoutWidget()
 	hlo2->addWidget(btn);
 	connect(btn,&QPushButton::clicked,[this](){
 		timeOutWidget->hide();
+		player->stop();
 		MyQWidgetLib::SetTopMost(this, false);
 	});
 
@@ -327,9 +328,11 @@ void TimerWindow::SlotTick()
 
 void TimerWindow::PlaySound()
 {
-	if(chBoxPlaySound->isChecked() && !leSoundFile->text().isEmpty())
+	auto soundFile = leSoundFile->text();
+	if(chBoxPlaySound->isChecked() && !soundFile.isEmpty())
 	{
-		player->setMedia(QUrl::fromLocalFile(leSoundFile->text()));
+		if(!QFileInfo(soundFile).isFile()) { QMbc(0,"Error","Sound file "+soundFile+" not exists!"); return; }
+		player->setMedia(QUrl::fromLocalFile(soundFile));
 		player->play();
 	}
 }
