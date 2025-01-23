@@ -22,10 +22,14 @@ using namespace std;
 #include <QSettings>
 #include <QComboBox>
 
+#include "CodeMarkers.h"
 #include "MyQWidgetLib.h"
-
 #include "MyQShortings.h"
 #include "MyQDifferent.h"
+#include "MyCppDifferent.h"
+#include "MyQDialogs.h"
+#include "MyQExecute.h"
+#include "MyQWindows.h"
 
 const char* on = "Включить";
 const char* off = "Отключить";
@@ -35,7 +39,7 @@ namespace SettingsKeys {
 	const QString sound_notify_file = "sound_notify_file";
 }
 
-TimerWindow::TimerWindow(QWidget *parent)
+TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	: QWidget(parent)
 {
 	mainLayOut = new QVBoxLayout(this);
@@ -56,6 +60,8 @@ TimerWindow::TimerWindow(QWidget *parent)
 		}
 	});
 
+
+	// включить / отключить
 	auto hlo1 = new QHBoxLayout();
 	btn_control_timer = new QPushButton(on, this);
 	hlo1->addWidget(btn_control_timer);
@@ -142,6 +148,12 @@ TimerWindow::TimerWindow(QWidget *parent)
 	editDesribtion = new QLineEdit;
 	hlo7->addWidget(labelDesribtion);
 	hlo7->addWidget(editDesribtion);
+	connect(editDesribtion, &QLineEdit::textChanged, [this](const QString &){
+		if(0) CodeMarkers::to_do("сделать механизм отложенной записи, причем чтобы записывало не на каждую букву,"
+								 "а чтобы записывал уже по окончанию редактирования");
+		if(this->timer_checker->isActive())
+			WriteBackup();
+	});
 
 	auto hlo8 = new QHBoxLayout();
 	mainLayOut->addLayout(hlo8);
@@ -163,6 +175,13 @@ TimerWindow::TimerWindow(QWidget *parent)
 	CreateTrayIcon();
 
 	CreateSettingsWindow();
+
+	backupTimersPath = MyQDifferent::PathToExe() + "/files/backup_timers";
+	if(!QDir().mkpath(backupTimersPath)) QMbc(0,"err","can't create path " + backupTimersPath);
+
+	QTimer::singleShot(0,[this, args]() {
+		RestoreBackups(args);
+	});
 
 	QTimer::singleShot(0,[this]() {
 		LoadSettings();
@@ -199,6 +218,11 @@ void TimerWindow::CreateRowTime(int maxValue, QLineEdit *&edit, QSlider *&slider
 	connect(btnPlus,&QPushButton::clicked,[slider](){ slider->setValue(slider->value()+1); });
 	connect(btnMinus,&QPushButton::clicked,[slider](){ slider->setValue(slider->value()-1); });
 	connect(slider,&QSlider::valueChanged,[edit](int value){ edit->setText(QSn(value)); });
+	connect(edit,&QLineEdit::textChanged,[slider, edit](){
+		slider->blockSignals(true);
+		slider->setValue(edit->text().toUInt());
+		slider->blockSignals(false);
+	});
 }
 
 void TimerWindow::CreateTimoutWidget()
@@ -271,40 +295,79 @@ void TimerWindow::SlotControlTimer()
 {
 	if(btn_control_timer->text() == on)
 	{
-		QDateTime now = QDateTime::currentDateTime();
-		int hours = this->le_hours->text().toInt();
-		int minutes = this->le_minutes->text().toInt();
-		int seconds = this->le_seconds->text().toInt();
-		int countSecs = hours*3600 + minutes*60 + seconds;
-		if(countSecs == 0) return;
-
-		endDateTime = now.addSecs(countSecs);
-
-		timer_checker->start(20);
-
-		editTimeForm->setText(now.time().toString("HH:mm:ss"));
-		editTimeTo->setText(endDateTime.time().toString("HH:mm:ss") + " (" + QTime(hours, minutes, seconds).toString("HH:mm:ss") + ")");
-		SetWidgetsEnabled(false);
-		btn_control_timer->setText(off);
+		Start();
 	}
 	else if(btn_control_timer->text() == off)
 	{
 		auto answ = QMessageBox::question(this, "Timer is active", "Timer is active. Are you sure you want to stop?");
-		if(answ == QMessageBox::Yes) FinishOpts1();
+		if(answ == QMessageBox::Yes) Finish(false, true);
 		else if(answ == QMessageBox::No) { return; }
 		else QMessageBox::critical(this, "", "unrealesed button");
 	}
+}
+
+void TimerWindow::Start(const QDateTime *startTime, const QDateTime *endTime)
+{
+	if(startTime && startTime->isValid() && endTime && endTime->isValid()) {}
+	else if(startTime || endTime) QMbError("TimerWindow::Start wrong startTime/endTime");
+
+	startDateTime = QDateTime::currentDateTime();
+	if(startTime && startTime->isValid()) startDateTime = *startTime;
+	int hours = le_hours->text().toInt();
+	int minutes = le_minutes->text().toInt();
+	int seconds = le_seconds->text().toInt();
+	int countSecs;
+	if(endTime && endTime->isValid())
+	{
+		countSecs = startTime->secsTo(*endTime);
+		hours = countSecs / 3600; // 1 час = 3600 секунд
+		minutes = (countSecs % 3600) / 60; // Остаток секунд делим на 60 для получения минут
+		seconds = countSecs % 60; // Остаток секунд
+		le_hours->setText(QSn(hours));
+		le_minutes->setText(QSn(minutes));
+		le_seconds->setText(QSn(seconds));
+	}
+	else
+	{
+		countSecs = hours*3600 + minutes*60 + seconds;
+	}
+	if(countSecs == 0) return;
+
+	endDateTime = startDateTime.addSecs(countSecs);
+
+	timer_checker->start(20);
+
+	editTimeForm->setText(startDateTime.time().toString("HH:mm:ss"));
+	editTimeTo->setText(endDateTime.time().toString("HH:mm:ss") + " (" + QTime(hours, minutes, seconds).toString("HH:mm:ss") + ")");
+	SetWidgetsEnabled(false);
+	btn_control_timer->setText(off);
+
+	backupTimerCurrent = backupTimersPath + "/" + startDateTime.toString("yyyy.MM.dd hh-mm-ss-zzz") + ".txt";
+	WriteBackup();
+}
+
+void TimerWindow::WriteBackup()
+{
+	QString contentToWrite;
+	contentToWrite += QSn(QCoreApplication::applicationPid());
+	contentToWrite += "\n";
+	contentToWrite += MyQWindows::GetProcessStartTime(
+				QCoreApplication::applicationPid()).toString("yyyy.MM.dd hh-mm-ss-zzz");
+	contentToWrite += "\n";
+	contentToWrite += startDateTime.toString("yyyy.MM.dd hh-mm-ss-zzz");
+	contentToWrite += "\n";
+	contentToWrite += endDateTime.toString("yyyy.MM.dd hh-mm-ss-zzz");
+	contentToWrite += "\n";
+	contentToWrite += editDesribtion->text();
+	if(!MyQFileDir::WriteFile(backupTimerCurrent, contentToWrite))
+		QMbc(0,"error","error write file [" + backupTimerCurrent + "]");
 }
 
 void TimerWindow::SlotTick()
 {
 	if(QDateTime::currentDateTime() >= endDateTime)
 	{
-		FinishOpts1();
-
-		PlaySound();
-
-		ShowOnTimeOut();
+		Finish(true, true);
 	}
 	else
 	{
@@ -344,14 +407,21 @@ void TimerWindow::ShowOnTimeOut()
 	ShowTimeoutWidget();
 }
 
-void TimerWindow::FinishOpts1()
+void TimerWindow::Finish(bool itIsTimeout, bool removeBackupFile)
 {
 	timer_checker->stop();
 	setWindowTitle("Timer");
-	editTimeForm->clear();
-	editTimeTo->clear();
 	SetWidgetsEnabled(true);
 	btn_control_timer->setText(on);
+
+	if(removeBackupFile)
+		if(!QFile::remove(backupTimerCurrent)) QMbc(0,"error","error removing file [" + backupTimerCurrent + "]");
+
+	if(itIsTimeout)
+	{
+		PlaySound();
+		ShowOnTimeOut();
+	}
 }
 
 void TimerWindow::SetWidgetsEnabled(bool value)
@@ -364,13 +434,112 @@ void TimerWindow::closeEvent(QCloseEvent *event)
 {
 	if(timer_checker->isActive())
 	{
-		auto answ = QMessageBox::question(this, "Timer is active", "Timer is active. Are you sure you want to exit?");
-		if(answ == QMessageBox::Yes) event->accept();
-		else if(answ == QMessageBox::No) { event->ignore(); return; }
+
+		auto answ = MyQDialogs::CustomDialog("Timer is active", "You are closing active timer. Choose action:"
+											 "\n\n(choose Close and save backup and you can restore current timer at next launch)",
+											 {"Close", "Close and save backup", "Abort close"});
+		if(answ == "Close") { Finish(false, true); event->accept(); }
+		else if(answ == "Close and save backup") { Finish(false, false); event->accept(); }
+		else if(answ == "Abort close") { event->ignore(); return; }
 		else QMessageBox::critical(this, "", "unrealesed button");
 	}
 
 	QApplication::quit(); // потому что если окно побывало Tool приложение не закрывается
+}
+
+void TimerWindow::RestoreBackups(const QStringList &args)
+{
+	if(!args.isEmpty())
+	{
+		auto contentsList = MyQFileDir::ReadFile1(backupTimersPath + "/" + args[0]).split("\n");
+
+		if(!QFile(backupTimersPath + "/" + args[0]).remove()) QMbError("can't remove");
+
+		if(contentsList.size() != 5) QMbError("wrong size " + contentsList.join("\n"));
+		else
+		{
+			editDesribtion->setText(contentsList[4]);
+			auto start = QDateTime::fromString(contentsList[2], "yyyy.MM.dd hh-mm-ss-zzz");
+			auto end = QDateTime::fromString(contentsList[3], "yyyy.MM.dd hh-mm-ss-zzz");
+			Start(&start, &end);
+			QPoint pos(args[1].toInt(), args[2].toInt());
+			QTimer::singleShot(0,[this, pos](){ move(pos); });
+		}
+		return;
+	}
+
+	QStringList PIDs, pStartedAts, starts, finishes, captions;
+	QFileInfoList correctFiles;
+	auto filesInfos = QDir(backupTimersPath).entryInfoList(QDir::Files);
+	for(auto &fileInfo:filesInfos)
+	{
+		auto readRes = MyQFileDir::ReadFile2(fileInfo.filePath());
+		auto rowsInContent = readRes.content.split("\n");
+
+		if(fileInfo.isFile() && fileInfo.suffix() == "txt" && readRes.success && rowsInContent.size() == 5)
+		{
+			auto pid = rowsInContent[0];
+			auto startedAt = rowsInContent[1];
+
+			if(MyQWindows::IsProcessRunning(pid.toUInt()) &&
+					QDateTime::fromString(startedAt,"yyyy.MM.dd hh-mm-ss-zzz") == MyQWindows::GetProcessStartTime(pid.toUInt()))
+				continue;
+
+			starts.push_back(rowsInContent[2]);
+			PIDs.push_back(pid);
+			pStartedAts.push_back(startedAt);
+			finishes.push_back(rowsInContent[3]);
+			captions.push_back(rowsInContent[4]);
+			correctFiles.push_back(fileInfo);
+		}
+		else
+		{
+			auto answ = MyQDialogs::CustomDialog("Error", "Wrong backup file " + fileInfo.filePath(),
+												 {"Show text and remove", "Ignore and remove"});
+			if(0) {}
+			else if(answ == "Show text and remove")
+			{
+				auto rRes = MyQFileDir::ReadFile2(fileInfo.filePath());
+				if(rRes.success)
+				{
+					if(!QFile(fileInfo.filePath()).remove()) QMbError("can't remove");
+					MyQDialogs::ShowText(rRes.content);
+				}
+				else QMbError("can't read, will not remove");
+			}
+			else if(answ == "Ignore and remove") { if(!QFile(fileInfo.filePath()).remove()) QMbError("can't remove"); }
+			else QMbError("unexpacted answ " + answ);
+		}
+	}
+
+	bool removeAll = false;
+	bool restoreAll = false;
+	QPoint pos = this->pos();
+	for(int i=0; i<starts.size(); i++)
+	{
+		QString text = "Timer backup found:\n\nstarted at: " + starts[i] + "\nfinished at: " + finishes[i];
+		if(!captions[i].isEmpty()) text += "\ndescribtion: " + captions[i];
+		else text += "\ndescribtion empty";
+		QString answ;
+		if(removeAll) answ = "Remove";
+		else if(restoreAll) answ = "Restore";
+		else answ = MyQDialogs::CustomDialog("Timer backup", text,
+											 {"Restore", "Restore all", "Ignore", "Ignore all", "Remove", "Remove all"});
+		if(0) {}
+		else if(answ == "Restore") {
+			pos.setX(pos.x()+30);
+			pos.setY(pos.y()+30);
+			MyQExecute::Execute(MyQDifferent::ExePathName(), {correctFiles[i].fileName(), QSn(pos.x()), QSn(pos.y())});
+			// не удалять файл!!! его удалит запущенная прога!!!
+			MyCppDifferent::sleep_ms(100);
+		}
+		else if(answ == "Restore all") { restoreAll = true; i--; /*i-- чтобы остаться на этом же файле*/ }
+		else if(answ == "Ignore") { continue; }
+		else if(answ == "Ignore all") { break; }
+		else if(answ == "Remove") { if(!QFile(filesInfos[i].filePath()).remove()) QMbError("can't remove"); }
+		else if(answ == "Remove all") { removeAll = true; i--; /*i-- чтобы остаться на этом же файле*/ }
+		else QMbError("unexpacted answ " + answ);
+	}
 }
 
 void TimerWindow::CreateSettingsWindow()

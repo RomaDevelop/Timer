@@ -4,12 +4,16 @@ CONFIG += c++17
 
 SOURCES += \
     ../include/MyQWidgetLib.cpp \
+    ../include/MyQWindows.cpp \
     TimerWindow.cpp \
     main.cpp
 
 HEADERS += \
     ../include/MyQWidgetLib.h \
+    ../include/MyQWindows.h \
     TimerWindow.h
+
+DEPENDPATH += ../include
 
 INCLUDEPATH += ../include
 

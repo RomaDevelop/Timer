@@ -33,6 +33,7 @@ class TimerWindow : public QWidget
 	QSlider *slider_minutes;
 	QSlider *slider_seconds;
 
+	QDateTime startDateTime;
 	QDateTime endDateTime;
 
 	QLineEdit *editTimeForm;
@@ -48,7 +49,7 @@ class TimerWindow : public QWidget
 	std::vector<QWidget *> widgets_to_enable;
 
 public:
-	TimerWindow(QWidget *parent = nullptr);
+	TimerWindow(QStringList args = {}, QWidget *parent = nullptr);
 	~TimerWindow() = default;
 
 	void CreateRowTime(int maxValue, QLineEdit *& edit, QSlider *&slider);
@@ -59,6 +60,9 @@ public:
 	void ShowMainWindow();
 
 	void SlotControlTimer();
+	void Start(const QDateTime *startTime = nullptr, const QDateTime *endTime = nullptr);
+
+	void WriteBackup();
 
 	void SlotTick();
 
@@ -66,12 +70,15 @@ public:
 
 	void ShowOnTimeOut();
 
+	void Finish(bool itIsTimeout, bool removeBackupFile);
 
-	void FinishOpts1();
 	void SetWidgetsEnabled(bool value);
 
 	void closeEvent (QCloseEvent *event) override;
 
+	void RestoreBackups(const QStringList &args);
+	QString backupTimersPath;
+	QString backupTimerCurrent;
 	QString settings_file;
 	QWidget *windowSettings;
 	QCheckBox *chBoxPlaySound;
