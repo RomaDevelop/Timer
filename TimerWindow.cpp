@@ -42,6 +42,8 @@ namespace SettingsKeys {
 TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	: QWidget(parent)
 {
+	qdbg << "нужно сделать регулятор громкости";
+	
 	mainLayOut = new QVBoxLayout(this);
 
 	auto font = this->font();
