@@ -43,6 +43,7 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	: QWidget(parent)
 {
 	qdbg << "нужно сделать регулятор громкости";
+	предупреждение при сворачивании незапущенного
 	
 	mainLayOut = new QVBoxLayout(this);
 
