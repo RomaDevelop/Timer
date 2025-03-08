@@ -44,6 +44,7 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 {
 	qdbg << "нужно сделать регулятор громкости";
 	предупреждение при сворачивании незапущенного
+	LAV audio decoder (или другие кодеки) выгружать просле завершения работы плеера
 	
 	mainLayOut = new QVBoxLayout(this);
 
