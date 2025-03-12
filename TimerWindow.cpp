@@ -43,8 +43,8 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	: QWidget(parent)
 {
 	qdbg << "нужно сделать регулятор громкости";
-	предупреждение при сворачивании незапущенного
-	LAV audio decoder (или другие кодеки) выгружать просле завершения работы плеера
+	qdbg << "предупреждение при сворачивании незапущенного";
+	qdbg << "LAV audio decoder (или другие кодеки) выгружать просле завершения работы плеера";
 	
 	mainLayOut = new QVBoxLayout(this);
 
@@ -227,6 +227,8 @@ void TimerWindow::CreateRowTime(int maxValue, QLineEdit *&edit, QSlider *&slider
 		slider->setValue(edit->text().toUInt());
 		slider->blockSignals(false);
 	});
+
+	qdbg << "сделать чтобы + и - добавляло вышестоящие или уменьшало нижние (типа 59 минут + 1 равно +час)";
 }
 
 void TimerWindow::CreateTimoutWidget()
@@ -533,7 +535,7 @@ void TimerWindow::RestoreBackups(const QStringList &args)
 		else if(answ == "Restore") {
 			pos.setX(pos.x()+30);
 			pos.setY(pos.y()+30);
-			MyQExecute::Execute(MyQDifferent::ExePathName(), {correctFiles[i].fileName(), QSn(pos.x()), QSn(pos.y())});
+			MyQExecute::Execute(MyQDifferent::ExeNameWithPath(), {correctFiles[i].fileName(), QSn(pos.x()), QSn(pos.y())});
 			// не удалять файл!!! его удалит запущенная прога!!!
 			MyCppDifferent::sleep_ms(100);
 		}
