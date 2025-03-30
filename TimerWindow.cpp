@@ -23,13 +23,12 @@ using namespace std;
 #include <QComboBox>
 
 #include "CodeMarkers.h"
-#include "MyQWidgetLib.h"
+#include "PlatformDependent.h"
 #include "MyQShortings.h"
 #include "MyQDifferent.h"
 #include "MyCppDifferent.h"
 #include "MyQDialogs.h"
 #include "MyQExecute.h"
-#include "MyQWindows.h"
 
 const char* on = "Включить";
 const char* off = "Отключить";
@@ -42,6 +41,7 @@ namespace SettingsKeys {
 TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	: QWidget(parent)
 {
+	qdbg << "предварительная загрузка медиаплеера";
 	qdbg << "нужно сделать регулятор громкости";
 	qdbg << "предупреждение при сворачивании незапущенного";
 	qdbg << "LAV audio decoder (или другие кодеки) выгружать просле завершения работы плеера";
@@ -258,7 +258,7 @@ void TimerWindow::CreateTimoutWidget()
 	connect(btn,&QPushButton::clicked,[this](){
 		timeOutWidget->hide();
 		player->stop();
-		MyQWidgetLib::SetTopMost(this, false);
+		PlatformDependent::SetTopMost(this, false);
 	});
 
 	timeOutWidget->adjustSize();
@@ -271,7 +271,7 @@ void TimerWindow::ShowTimeoutWidget()
 
 	QTimer::singleShot(10,[this](){
 		timeOutWidget->activateWindow();
-		MyQWidgetLib::SetTopMost(timeOutWidget.get(), true);
+		PlatformDependent::SetTopMost(timeOutWidget.get(), true);
 	});
 	timeOutWidget->exec();
 }
@@ -357,7 +357,7 @@ void TimerWindow::WriteBackup()
 	QString contentToWrite;
 	contentToWrite += QSn(QCoreApplication::applicationPid());
 	contentToWrite += "\n";
-	contentToWrite += MyQWindows::GetProcessStartTime(
+	contentToWrite += PlatformDependent::GetProcessStartTime(
 				QCoreApplication::applicationPid()).toString("yyyy.MM.dd hh-mm-ss-zzz");
 	contentToWrite += "\n";
 	contentToWrite += startDateTime.toString("yyyy.MM.dd hh-mm-ss-zzz");
@@ -409,7 +409,7 @@ void TimerWindow::PlaySound()
 void TimerWindow::ShowOnTimeOut()
 {
 	ShowMainWindow();
-	MyQWidgetLib::SetTopMost(this, true);
+	PlatformDependent::SetTopMost(this, true);
 	ShowTimeoutWidget();
 }
 
@@ -487,8 +487,8 @@ void TimerWindow::RestoreBackups(const QStringList &args)
 			auto pid = rowsInContent[0];
 			auto startedAt = rowsInContent[1];
 
-			if(MyQWindows::IsProcessRunning(pid.toUInt()) &&
-					QDateTime::fromString(startedAt,"yyyy.MM.dd hh-mm-ss-zzz") == MyQWindows::GetProcessStartTime(pid.toUInt()))
+			if(PlatformDependent::IsProcessRunning(pid.toUInt()) &&
+					QDateTime::fromString(startedAt,"yyyy.MM.dd hh-mm-ss-zzz") == PlatformDependent::GetProcessStartTime(pid.toUInt()))
 				continue;
 
 			starts.push_back(rowsInContent[2]);

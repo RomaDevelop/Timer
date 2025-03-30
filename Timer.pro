@@ -3,14 +3,12 @@ QT       += core gui widgets multimedia
 CONFIG += c++17
 
 SOURCES += \
-    ../include/MyQWidgetLib.cpp \
-    ../include/MyQWindows.cpp \
+    ../include/PlatformDependent.cpp \
     TimerWindow.cpp \
     main.cpp
 
 HEADERS += \
-    ../include/MyQWidgetLib.h \
-    ../include/MyQWindows.h \
+    ../include/PlatformDependent.h \
     TimerWindow.h
 
 DEPENDPATH += ../include
