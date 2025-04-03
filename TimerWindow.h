@@ -14,6 +14,7 @@
 #include <QLabel>
 #include <QMediaPlayer>
 #include <QCheckBox>
+#include <QRadioButton>
 
 class TimerWindow : public QWidget
 {
@@ -24,6 +25,9 @@ class TimerWindow : public QWidget
 	QSystemTrayIcon *icon = nullptr;
 
 	QPushButton *btn_control_timer;
+
+	QRadioButton *rBtnOverTime;
+	QRadioButton *rBtnAtTime;
 
 	QLineEdit *le_hours;
 	QLineEdit *le_minutes;
@@ -54,7 +58,6 @@ public:
 
 	void CreateRowTime(int maxValue, QLineEdit *& edit, QSlider *&slider);
 	void CreateTimoutWidget();
-	void ShowTimeoutWidget();
 	void CreateTrayIcon();
 
 	void ShowMainWindow();
@@ -65,6 +68,7 @@ public:
 	void WriteBackup();
 
 	void SlotTick();
+	QTime GetReaminTime();
 
 	void PlaySound();
 

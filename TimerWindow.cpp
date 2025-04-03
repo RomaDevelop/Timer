@@ -73,12 +73,11 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	mainLayOut->addLayout(hlo1);
 
 	auto hlo2 = new QHBoxLayout();
-	QRadioButton *rBtnOverTime = new QRadioButton("Через");
-	QRadioButton *rBtnAtTime = new QRadioButton("В заданное время");
+	rBtnOverTime = new QRadioButton("Через");
+	rBtnAtTime = new QRadioButton("В заданное время");
 	widgets_to_enable.push_back(rBtnOverTime);
-	//widgets_to_enable.push_back(rBtnAtTime);
+	widgets_to_enable.push_back(rBtnAtTime);
 	rBtnOverTime->setChecked(true);
-	rBtnAtTime->setEnabled(false);
 
 	chBoxPlaySound = new QCheckBox("Звуковое уведомление");
 
@@ -233,8 +232,7 @@ void TimerWindow::CreateRowTime(int maxValue, QLineEdit *&edit, QSlider *&slider
 
 void TimerWindow::CreateTimoutWidget()
 {
-	timeOutWidget = std::make_unique<QDialog>();
-	timeOutWidget->setWindowFlags(Qt::Tool);
+	timeOutWidget = std::make_unique<QDialog>(this, Qt::Tool);
 	timeOutWidget->setWindowFlags(windowFlags()
 								  & ~Qt::WindowCloseButtonHint
 								  & ~Qt::WindowMinimizeButtonHint
@@ -264,18 +262,6 @@ void TimerWindow::CreateTimoutWidget()
 	timeOutWidget->adjustSize();
 }
 
-void TimerWindow::ShowTimeoutWidget()
-{
-	timeOutWidget->move(this->x() + (width()-timeOutWidget->width()) / 2,
-						this->y() + (height()-timeOutWidget->height()) / 2);
-
-	QTimer::singleShot(10,[this](){
-		timeOutWidget->activateWindow();
-		PlatformDependent::SetTopMost(timeOutWidget.get(), true);
-	});
-	timeOutWidget->exec();
-}
-
 void TimerWindow::CreateTrayIcon()
 {
 	if(icon)
@@ -293,8 +279,9 @@ void TimerWindow::CreateTrayIcon()
 void TimerWindow::ShowMainWindow()
 {
 	setWindowFlag(Qt::Tool,false);
-	showMinimized();
 	showNormal();
+	PlatformDependent::SetTopMost(this, true);
+	PlatformDependent::SetTopMost(this, false);
 }
 
 void TimerWindow::SlotControlTimer()
@@ -318,33 +305,42 @@ void TimerWindow::Start(const QDateTime *startTime, const QDateTime *endTime)
 	else if(startTime || endTime) QMbError("TimerWindow::Start wrong startTime/endTime");
 
 	startDateTime = QDateTime::currentDateTime();
-	if(startTime && startTime->isValid()) startDateTime = *startTime;
-	int hours = le_hours->text().toInt();
-	int minutes = le_minutes->text().toInt();
-	int seconds = le_seconds->text().toInt();
-	int countSecs;
-	if(endTime && endTime->isValid())
+	if(rBtnOverTime->isChecked())
 	{
-		countSecs = startTime->secsTo(*endTime);
-		hours = countSecs / 3600; // 1 час = 3600 секунд
-		minutes = (countSecs % 3600) / 60; // Остаток секунд делим на 60 для получения минут
-		seconds = countSecs % 60; // Остаток секунд
-		le_hours->setText(QSn(hours));
-		le_minutes->setText(QSn(minutes));
-		le_seconds->setText(QSn(seconds));
-	}
-	else
-	{
-		countSecs = hours*3600 + minutes*60 + seconds;
-	}
-	if(countSecs == 0) return;
+		if(startTime && startTime->isValid()) startDateTime = *startTime;
+		int hours = le_hours->text().toInt();
+		int minutes = le_minutes->text().toInt();
+		int seconds = le_seconds->text().toInt();
+		int countSecs;
+		if(endTime && endTime->isValid())
+		{
+			countSecs = startTime->secsTo(*endTime);
+			hours = countSecs / 3600; // 1 час = 3600 секунд
+			minutes = (countSecs % 3600) / 60; // Остаток секунд делим на 60 для получения минут
+			seconds = countSecs % 60; // Остаток секунд
+			le_hours->setText(QSn(hours));
+			le_minutes->setText(QSn(minutes));
+			le_seconds->setText(QSn(seconds));
+		}
+		else
+		{
+			countSecs = hours*3600 + minutes*60 + seconds;
+		}
+		if(countSecs == 0) return;
 
-	endDateTime = startDateTime.addSecs(countSecs);
+		endDateTime = startDateTime.addSecs(countSecs);
+	}
+	else if(rBtnAtTime->isChecked())
+	{
+		endDateTime = QDateTime::currentDateTime();
+		endDateTime.setTime(QTime(le_hours->text().toInt(), le_minutes->text().toInt(), le_seconds->text().toInt()));
+		if(endDateTime < startDateTime) endDateTime = endDateTime.addDays(1);
+	}
 
 	timer_checker->start(20);
 
 	editTimeForm->setText(startDateTime.time().toString("HH:mm:ss"));
-	editTimeTo->setText(endDateTime.time().toString("HH:mm:ss") + " (" + QTime(hours, minutes, seconds).toString("HH:mm:ss") + ")");
+	editTimeTo->setText(endDateTime.time().toString("HH:mm:ss") + " (" + GetReaminTime().toString("HH:mm:ss") + ")");
 	SetWidgetsEnabled(false);
 	btn_control_timer->setText(off);
 
@@ -377,9 +373,7 @@ void TimerWindow::SlotTick()
 	}
 	else
 	{
-		int secs = QDateTime::currentDateTime().secsTo(endDateTime);
-		QTime remainTime(secs/3600, secs%3600/60, secs%60);
-
+		auto remainTime = GetReaminTime();
 		editTimeTo->setText(endDateTime.time().toString("HH:mm:ss") + " (" + remainTime.toString("HH:mm:ss") + ")");
 
 		setWindowTitle(remainTime.toString("HH:mm:ss") + " -> " +endDateTime.time().toString("HH:mm:ss")+ " Timer");
@@ -393,6 +387,13 @@ void TimerWindow::SlotTick()
 		toolTip += text;
 	}
 	icon->setToolTip(toolTip);
+}
+
+QTime TimerWindow::GetReaminTime()
+{
+	int secs = QDateTime::currentDateTime().secsTo(endDateTime);
+	QTime remainTime(secs/3600, secs%3600/60, secs%60);
+	return remainTime;
 }
 
 void TimerWindow::PlaySound()
@@ -410,7 +411,7 @@ void TimerWindow::ShowOnTimeOut()
 {
 	ShowMainWindow();
 	PlatformDependent::SetTopMost(this, true);
-	ShowTimeoutWidget();
+	QTimer::singleShot(0,[this](){ timeOutWidget->exec(); });
 }
 
 void TimerWindow::Finish(bool itIsTimeout, bool removeBackupFile)
