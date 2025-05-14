@@ -33,6 +33,8 @@ class TimerWindow : public QWidget
 	QLineEdit *le_minutes;
 	QLineEdit *le_seconds;
 
+	QTime timeSelected {0,0,0};
+
 	QSlider *slider_hours;
 	QSlider *slider_minutes;
 	QSlider *slider_seconds;
@@ -56,7 +58,8 @@ public:
 	TimerWindow(QStringList args = {}, QWidget *parent = nullptr);
 	~TimerWindow() = default;
 
-	void CreateRowTime(int maxValue, QLineEdit *& edit, QSlider *&slider);
+	enum RowType { h, m, s };
+	void CreateRowTime(RowType rowType, QLineEdit *& edit, QSlider *&slider);
 	void CreateTimoutWidget();
 	void CreateTrayIcon();
 

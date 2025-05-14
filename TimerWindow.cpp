@@ -43,8 +43,8 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 {
 	qdbg << "предварительная загрузка медиаплеера";
 	qdbg << "нужно сделать регулятор громкости";
-	qdbg << "предупреждение при сворачивании незапущенного";
 	qdbg << "LAV audio decoder (или другие кодеки) выгружать просле завершения работы плеера";
+	qdbg << "добавить ресурсы в класс ресурсы";
 	
 	mainLayOut = new QVBoxLayout(this);
 
@@ -94,13 +94,13 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	mainLayOut->addLayout(hlo2);
 
 	// часы
-	CreateRowTime(23, le_hours, slider_hours);
+	CreateRowTime(h, le_hours, slider_hours);
 
 	// минуты
-	CreateRowTime(59, le_minutes, slider_minutes);
+	CreateRowTime(m, le_minutes, slider_minutes);
 
 	// секунды
-	CreateRowTime(59, le_seconds, slider_seconds);
+	CreateRowTime(s, le_seconds, slider_seconds);
 
 	auto hlo5 = new QHBoxLayout();
 	mainLayOut->addLayout(hlo5);
@@ -163,6 +163,12 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 
 	QPushButton *btnToTray = new QPushButton("Свернуть в трей", this);
 	connect(btnToTray, &QPushButton::clicked, [this](){
+		if(!timer_checker->isActive())
+		{
+			auto res = QMessageBox::question(nullptr, "Minimize", "Timer is not started. Confirm minimize?");
+			if(res == QMessageBox::No) return;
+		}
+
 		setWindowFlag(Qt::Tool, true);
 	});
 	QPushButton *btnSettings = new QPushButton("Настройки", this);
@@ -192,7 +198,7 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	});
 }
 
-void TimerWindow::CreateRowTime(int maxValue, QLineEdit *&edit, QSlider *&slider)
+void TimerWindow::CreateRowTime(RowType rowType, QLineEdit *&edit, QSlider *&slider)
 {
 	auto hlo = new QHBoxLayout();
 	QPushButton *btnPlus = new QPushButton("+", this);
@@ -206,7 +212,7 @@ void TimerWindow::CreateRowTime(int maxValue, QLineEdit *&edit, QSlider *&slider
 	edit->setFixedWidth(60);
 	edit->setReadOnly(true);
 	edit->setAlignment(Qt::AlignCenter);
-	slider->setMaximum(maxValue);
+	slider->setMaximum(rowType == h ? 23 : 59);
 
 	hlo->addWidget(btnPlus);
 	hlo->addWidget(btnMinus);
@@ -218,16 +224,44 @@ void TimerWindow::CreateRowTime(int maxValue, QLineEdit *&edit, QSlider *&slider
 	widgets_to_enable.push_back(btnMinus);
 	widgets_to_enable.push_back(slider);
 
-	connect(btnPlus,&QPushButton::clicked,[slider](){ slider->setValue(slider->value()+1); });
-	connect(btnMinus,&QPushButton::clicked,[slider](){ slider->setValue(slider->value()-1); });
-	connect(slider,&QSlider::valueChanged,[edit](int value){ edit->setText(QSn(value)); });
-	connect(edit,&QLineEdit::textChanged,[slider, edit](){
-		slider->blockSignals(true);
-		slider->setValue(edit->text().toUInt());
-		slider->blockSignals(false);
+	auto update = [this](){
+		le_hours->setText(QSn(timeSelected.hour()));
+		le_minutes->setText(QSn(timeSelected.minute()));
+		le_seconds->setText(QSn(timeSelected.second()));
+
+		slider_hours->setValue(timeSelected.hour());
+		slider_minutes->setValue(timeSelected.minute());
+		slider_seconds->setValue(timeSelected.second());
+	};
+
+	connect(btnPlus,&QPushButton::clicked,[this, rowType, update](){
+		if(rowType == h) { timeSelected = timeSelected.addSecs(60*60); }
+		else if(rowType == m) { timeSelected = timeSelected.addSecs(60); }
+		else if(rowType == s) { timeSelected = timeSelected.addSecs(1); }
+		else QMbError("wrong rowType " + QSn(rowType));
+
+		update();
+	});
+	connect(btnMinus,&QPushButton::clicked,[this, rowType, update](){
+		if(timeSelected == QTime(0,0,0)) return;
+
+		if(rowType == h) { timeSelected = timeSelected.addSecs(-60*60); }
+		else if(rowType == m) { timeSelected = timeSelected.addSecs(-60); }
+		else if(rowType == s) { timeSelected = timeSelected.addSecs(-1); }
+		else QMbError("wrong rowType " + QSn(rowType));
+
+		update();
 	});
 
-	qdbg << "сделать чтобы + и - добавляло вышестоящие или уменьшало нижние (типа 59 минут + 1 равно +час)";
+	connect(slider,&QSlider::valueChanged,[this, rowType, update](int value){
+
+		if(rowType == h) timeSelected.setHMS(value, timeSelected.minute(), timeSelected.second());
+		else if(rowType == m) timeSelected.setHMS(timeSelected.hour(), value, timeSelected.second());
+		else if(rowType == s) timeSelected.setHMS(timeSelected.hour(), timeSelected.minute(), value);
+		else QMbError("wrong rowType " + QSn(rowType));
+
+		update();
+	});
 }
 
 void TimerWindow::CreateTimoutWidget()
