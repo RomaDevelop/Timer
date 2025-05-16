@@ -139,6 +139,8 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 
 	editTimeForm->setReadOnly(true);
 	editTimeTo->setReadOnly(true);
+	MyQWidget::SetTextColor_palette(editTimeForm, Qt::gray);
+	MyQWidget::SetTextColor_palette(editTimeTo, Qt::gray);
 	editTimeForm->setAlignment(Qt::AlignCenter);
 	editTimeTo->setAlignment(Qt::AlignCenter);
 
@@ -478,6 +480,17 @@ void TimerWindow::SetWidgetsEnabled(bool value)
 {
 	for(auto &w:widgets_to_enable)
 		w->setEnabled(value);
+
+	if(value)
+	{
+		MyQWidget::SetTextColor_palette(editTimeForm, Qt::gray);
+		MyQWidget::SetTextColor_palette(editTimeTo, Qt::gray);
+	}
+	else
+	{
+		MyQWidget::SetTextColor_palette(editTimeForm, Qt::black);
+		MyQWidget::SetTextColor_palette(editTimeTo, Qt::black);
+	}
 }
 
 void TimerWindow::closeEvent(QCloseEvent *event)
@@ -572,6 +585,7 @@ void TimerWindow::RestoreBackups(const QStringList &args)
 		}
 	}
 
+
 	bool removeAll = false;
 	bool restoreAll = false;
 	QPoint pos = this->pos();
@@ -583,6 +597,7 @@ void TimerWindow::RestoreBackups(const QStringList &args)
 		QString answ;
 		if(removeAll) answ = "Remove";
 		else if(restoreAll) answ = "Restore";
+
 		else answ = MyQDialogs::CustomDialog("Timer backup", text,
 											 {"Restore", "Restore all", "Ignore", "Ignore all", "Remove", "Remove all"});
 		if(0) {}
@@ -600,6 +615,7 @@ void TimerWindow::RestoreBackups(const QStringList &args)
 		else if(answ == "Remove all") { removeAll = true; i--; /*i-- чтобы остаться на этом же файле*/ }
 		else QMbError("unexpacted answ " + answ);
 	}
+
 }
 
 void TimerWindow::CreateSettingsWindow()
