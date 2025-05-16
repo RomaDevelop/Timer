@@ -20,40 +20,6 @@ class TimerWindow : public QWidget
 {
 	Q_OBJECT
 
-	QVBoxLayout *mainLayOut;
-
-	QSystemTrayIcon *icon = nullptr;
-
-	QPushButton *btn_control_timer;
-
-	QRadioButton *rBtnOverTime;
-	QRadioButton *rBtnAtTime;
-
-	QLineEdit *le_hours;
-	QLineEdit *le_minutes;
-	QLineEdit *le_seconds;
-
-	QTime timeSelected {0,0,0};
-
-	QSlider *slider_hours;
-	QSlider *slider_minutes;
-	QSlider *slider_seconds;
-
-	QDateTime startDateTime;
-	QDateTime endDateTime;
-
-	QLineEdit *editTimeForm;
-	QLineEdit *editTimeTo;
-
-	QLineEdit *editDesribtion;
-
-	QTimer *timer_checker;
-	QMediaPlayer *player;
-
-	std::unique_ptr<QDialog> timeOutWidget;
-
-	std::vector<QWidget *> widgets_to_enable;
-
 public:
 	TimerWindow(QStringList args = {}, QWidget *parent = nullptr);
 	~TimerWindow() = default;
@@ -67,11 +33,14 @@ public:
 
 	void SlotControlTimer();
 	void Start(const QDateTime *startTime = nullptr, const QDateTime *endTime = nullptr);
+	QDateTime CalcEndTime(const QDateTime &startDateTime, const QTime &timeSelected);
 
 	void WriteBackup();
 
 	void SlotTick();
-	QTime GetReaminTime();
+	void TickWhenNotActive();
+	void TickWhenActive();
+	QTime GetReaminTime(const QDateTime &from, const QDateTime &to);
 
 	void PlaySound();
 
@@ -82,6 +51,9 @@ public:
 	void SetWidgetsEnabled(bool value);
 
 	void closeEvent (QCloseEvent *event) override;
+
+	enum class State { active, notActive, error };
+	State CurrentState();
 
 	void RestoreBackups(const QStringList &args);
 	QString backupTimersPath;
@@ -94,5 +66,44 @@ public:
 	void CreateSettingsWindow();
 	void LoadSettings();
 	void ConnectSavingWidgets();
+
+private:
+	QVBoxLayout *mainLayOut;
+
+	QSystemTrayIcon *icon = nullptr;
+
+	QPushButton *btnControlTimer;
+
+	QRadioButton *rBtnOverTime;
+	QRadioButton *rBtnAtTime;
+
+	QLineEdit *le_hours;
+	QLineEdit *le_minutes;
+	QLineEdit *le_seconds;
+
+	QTime timeSelected {0,0,0};
+	void UpdateFromTimeSelected();
+
+	QSlider *slider_hours;
+	QSlider *slider_minutes;
+	QSlider *slider_seconds;
+
+	QDateTime startDateTime;
+	QDateTime endDateTime;
+
+	QLineEdit *editTimeForm;
+	void SetEditFrom(const QTime &time);
+	QLineEdit *editTimeTo;
+	void SetEditTo(const QTime &timeEnd, const QTime &timeRemain);
+
+	QLineEdit *editDesribtion;
+
+	QTimer *timerForActiveChecker;
+	QMediaPlayer *player;
+
+	std::unique_ptr<QDialog> timeOutWidget;
+
+	std::vector<QWidget *> widgets_to_enable;
 };
+
 #endif // TIMER_H

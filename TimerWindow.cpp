@@ -30,8 +30,10 @@ using namespace std;
 #include "MyQDialogs.h"
 #include "MyQExecute.h"
 
-const char* on = "Включить";
-const char* off = "Отключить";
+namespace ButtonCaptions {
+	const char* on = "Включить";
+	const char* off = "Отключить";
+}
 
 namespace SettingsKeys {
 	const QString do_sound_notify = "do_sound_notify";
@@ -52,8 +54,9 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	font.setPointSize(14);
 	this->setFont(font);
 
-	timer_checker = new QTimer(this);
-	connect(timer_checker,&QTimer::timeout,this, &TimerWindow::SlotTick);
+	timerForActiveChecker = new QTimer(this);
+	connect(timerForActiveChecker,&QTimer::timeout,this, &TimerWindow::SlotTick);
+	timerForActiveChecker->start(20);
 
 	player = new QMediaPlayer(this);
 	connect(player, &QMediaPlayer::mediaStatusChanged, [this](QMediaPlayer::MediaStatus status){
@@ -67,9 +70,9 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 
 	// включить / отключить
 	auto hlo1 = new QHBoxLayout();
-	btn_control_timer = new QPushButton(on, this);
-	hlo1->addWidget(btn_control_timer);
-	connect(btn_control_timer, &QPushButton::clicked, this, &TimerWindow::SlotControlTimer);
+	btnControlTimer = new QPushButton(ButtonCaptions::on, this);
+	hlo1->addWidget(btnControlTimer);
+	connect(btnControlTimer, &QPushButton::clicked, this, &TimerWindow::SlotControlTimer);
 	mainLayOut->addLayout(hlo1);
 
 	auto hlo2 = new QHBoxLayout();
@@ -154,7 +157,7 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	connect(editDesribtion, &QLineEdit::textChanged, [this](const QString &){
 		if(0) CodeMarkers::to_do("сделать механизм отложенной записи, причем чтобы записывало не на каждую букву,"
 								 "а чтобы записывал уже по окончанию редактирования");
-		if(this->timer_checker->isActive())
+		if(CurrentState() == State::active)
 			WriteBackup();
 	});
 
@@ -163,7 +166,7 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 
 	QPushButton *btnToTray = new QPushButton("Свернуть в трей", this);
 	connect(btnToTray, &QPushButton::clicked, [this](){
-		if(!timer_checker->isActive())
+		if(CurrentState() != State::active)
 		{
 			auto res = QMessageBox::question(nullptr, "Minimize", "Timer is not started. Confirm minimize?");
 			if(res == QMessageBox::No) return;
@@ -224,25 +227,15 @@ void TimerWindow::CreateRowTime(RowType rowType, QLineEdit *&edit, QSlider *&sli
 	widgets_to_enable.push_back(btnMinus);
 	widgets_to_enable.push_back(slider);
 
-	auto update = [this](){
-		le_hours->setText(QSn(timeSelected.hour()));
-		le_minutes->setText(QSn(timeSelected.minute()));
-		le_seconds->setText(QSn(timeSelected.second()));
-
-		slider_hours->setValue(timeSelected.hour());
-		slider_minutes->setValue(timeSelected.minute());
-		slider_seconds->setValue(timeSelected.second());
-	};
-
-	connect(btnPlus,&QPushButton::clicked,[this, rowType, update](){
+	connect(btnPlus,&QPushButton::clicked,[this, rowType](){
 		if(rowType == h) { timeSelected = timeSelected.addSecs(60*60); }
 		else if(rowType == m) { timeSelected = timeSelected.addSecs(60); }
 		else if(rowType == s) { timeSelected = timeSelected.addSecs(1); }
 		else QMbError("wrong rowType " + QSn(rowType));
 
-		update();
+		UpdateFromTimeSelected();
 	});
-	connect(btnMinus,&QPushButton::clicked,[this, rowType, update](){
+	connect(btnMinus,&QPushButton::clicked,[this, rowType](){
 		if(timeSelected == QTime(0,0,0)) return;
 
 		if(rowType == h) { timeSelected = timeSelected.addSecs(-60*60); }
@@ -250,17 +243,17 @@ void TimerWindow::CreateRowTime(RowType rowType, QLineEdit *&edit, QSlider *&sli
 		else if(rowType == s) { timeSelected = timeSelected.addSecs(-1); }
 		else QMbError("wrong rowType " + QSn(rowType));
 
-		update();
+		UpdateFromTimeSelected();
 	});
 
-	connect(slider,&QSlider::valueChanged,[this, rowType, update](int value){
+	connect(slider,&QSlider::valueChanged,[this, rowType](int value){
 
 		if(rowType == h) timeSelected.setHMS(value, timeSelected.minute(), timeSelected.second());
 		else if(rowType == m) timeSelected.setHMS(timeSelected.hour(), value, timeSelected.second());
 		else if(rowType == s) timeSelected.setHMS(timeSelected.hour(), timeSelected.minute(), value);
 		else QMbError("wrong rowType " + QSn(rowType));
 
-		update();
+		UpdateFromTimeSelected();
 	});
 }
 
@@ -320,11 +313,11 @@ void TimerWindow::ShowMainWindow()
 
 void TimerWindow::SlotControlTimer()
 {
-	if(btn_control_timer->text() == on)
+	if(CurrentState() == State::notActive)
 	{
 		Start();
 	}
-	else if(btn_control_timer->text() == off)
+	else if(CurrentState() == State::active)
 	{
 		auto answ = QMessageBox::question(this, "Timer is active", "Timer is active. Are you sure you want to stop?");
 		if(answ == QMessageBox::Yes) Finish(false, true);
@@ -339,47 +332,41 @@ void TimerWindow::Start(const QDateTime *startTime, const QDateTime *endTime)
 	else if(startTime || endTime) QMbError("TimerWindow::Start wrong startTime/endTime");
 
 	startDateTime = QDateTime::currentDateTime();
-	if(rBtnOverTime->isChecked())
-	{
-		if(startTime && startTime->isValid()) startDateTime = *startTime;
-		int hours = le_hours->text().toInt();
-		int minutes = le_minutes->text().toInt();
-		int seconds = le_seconds->text().toInt();
-		int countSecs;
-		if(endTime && endTime->isValid())
-		{
-			countSecs = startTime->secsTo(*endTime);
-			hours = countSecs / 3600; // 1 час = 3600 секунд
-			minutes = (countSecs % 3600) / 60; // Остаток секунд делим на 60 для получения минут
-			seconds = countSecs % 60; // Остаток секунд
-			le_hours->setText(QSn(hours));
-			le_minutes->setText(QSn(minutes));
-			le_seconds->setText(QSn(seconds));
-		}
-		else
-		{
-			countSecs = hours*3600 + minutes*60 + seconds;
-		}
-		if(countSecs == 0) return;
+	if(startTime && startTime->isValid()) startDateTime = *startTime;
 
-		endDateTime = startDateTime.addSecs(countSecs);
-	}
-	else if(rBtnAtTime->isChecked())
+	if(endTime && endTime->isValid())
 	{
-		endDateTime = QDateTime::currentDateTime();
-		endDateTime.setTime(QTime(le_hours->text().toInt(), le_minutes->text().toInt(), le_seconds->text().toInt()));
-		if(endDateTime < startDateTime) endDateTime = endDateTime.addDays(1);
+		int countSecs = startTime->secsTo(*endTime);
+		int hours = countSecs / 3600; // 1 час = 3600 секунд
+		int minutes = (countSecs % 3600) / 60; // Остаток секунд делим на 60 для получения минут
+		int seconds = countSecs % 60; // Остаток секунд
+		timeSelected = QTime(hours, minutes, seconds);
+		UpdateFromTimeSelected();
 	}
 
-	timer_checker->start(20);
+	endDateTime = CalcEndTime(startDateTime, timeSelected);
 
-	editTimeForm->setText(startDateTime.time().toString("HH:mm:ss"));
-	editTimeTo->setText(endDateTime.time().toString("HH:mm:ss") + " (" + GetReaminTime().toString("HH:mm:ss") + ")");
+	SetEditFrom(startDateTime.time());
 	SetWidgetsEnabled(false);
-	btn_control_timer->setText(off);
+	btnControlTimer->setText(ButtonCaptions::off);
 
 	backupTimerCurrent = backupTimersPath + "/" + startDateTime.toString("yyyy.MM.dd hh-mm-ss-zzz") + ".txt";
 	WriteBackup();
+}
+
+QDateTime TimerWindow::CalcEndTime(const QDateTime &startDateTime, const QTime &timeSelected)
+{
+	if(rBtnOverTime->isChecked())
+		return startDateTime.addSecs(QTime(0,0,0).secsTo(timeSelected));
+	else if(rBtnAtTime->isChecked())
+	{
+		auto endDateTime = QDateTime::currentDateTime();
+		endDateTime.setTime(QTime(timeSelected.hour(), timeSelected.minute(), timeSelected.second()));
+		if(endDateTime < startDateTime) endDateTime = endDateTime.addDays(1);
+		return endDateTime;
+	}
+	QMbError("");
+	return QDateTime{};
 }
 
 void TimerWindow::WriteBackup()
@@ -401,16 +388,39 @@ void TimerWindow::WriteBackup()
 
 void TimerWindow::SlotTick()
 {
+	if(CurrentState() == State::notActive)
+	{
+		TickWhenNotActive();
+	}
+	else if(CurrentState() == State::active)
+	{
+		TickWhenActive();
+	}
+}
+
+void TimerWindow::TickWhenNotActive()
+{
+	auto curDT = QDateTime::currentDateTime();
+	SetEditFrom(curDT.time());
+	auto endDT = CalcEndTime(curDT, timeSelected);
+	SetEditTo(endDT.time(), GetReaminTime(curDT, endDT));
+}
+
+void TimerWindow::TickWhenActive()
+{
 	if(QDateTime::currentDateTime() >= endDateTime)
 	{
 		Finish(true, true);
 	}
 	else
 	{
-		auto remainTime = GetReaminTime();
-		editTimeTo->setText(endDateTime.time().toString("HH:mm:ss") + " (" + remainTime.toString("HH:mm:ss") + ")");
+		auto remainTime = GetReaminTime(QDateTime::currentDateTime(), endDateTime);
+		SetEditTo(endDateTime.time(), remainTime);
 
-		setWindowTitle(remainTime.toString("HH:mm:ss") + " -> " +endDateTime.time().toString("HH:mm:ss")+ " Timer");
+		QString title = remainTime.toString("HH:mm:ss");
+		title += " ";
+		title += editDesribtion->text();
+		setWindowTitle(title);
 	}
 
 	QString toolTip = windowTitle();
@@ -423,9 +433,9 @@ void TimerWindow::SlotTick()
 	icon->setToolTip(toolTip);
 }
 
-QTime TimerWindow::GetReaminTime()
+QTime TimerWindow::GetReaminTime(const QDateTime &from, const QDateTime &to)
 {
-	int secs = QDateTime::currentDateTime().secsTo(endDateTime);
+	int secs = from.secsTo(to);
 	QTime remainTime(secs/3600, secs%3600/60, secs%60);
 	return remainTime;
 }
@@ -450,10 +460,9 @@ void TimerWindow::ShowOnTimeOut()
 
 void TimerWindow::Finish(bool itIsTimeout, bool removeBackupFile)
 {
-	timer_checker->stop();
 	setWindowTitle("Timer");
 	SetWidgetsEnabled(true);
-	btn_control_timer->setText(on);
+	btnControlTimer->setText(ButtonCaptions::on);
 
 	if(removeBackupFile)
 		if(!QFile::remove(backupTimerCurrent)) QMbc(0,"error","error removing file [" + backupTimerCurrent + "]");
@@ -473,9 +482,8 @@ void TimerWindow::SetWidgetsEnabled(bool value)
 
 void TimerWindow::closeEvent(QCloseEvent *event)
 {
-	if(timer_checker->isActive())
+	if(CurrentState() == State::active)
 	{
-
 		auto answ = MyQDialogs::CustomDialog("Timer is active", "You are closing active timer. Choose action:"
 											 "\n\n(choose Close and save backup and you can restore current timer at next launch)",
 											 {"Close", "Close and save backup", "Abort close"});
@@ -486,6 +494,17 @@ void TimerWindow::closeEvent(QCloseEvent *event)
 	}
 
 	QApplication::quit(); // потому что если окно побывало Tool приложение не закрывается
+}
+
+TimerWindow::State TimerWindow::CurrentState()
+{
+	QString btnText = btnControlTimer->text();
+	if(btnText == ButtonCaptions::on)
+		return State::notActive;
+	else if(btnText == ButtonCaptions::off)
+		return State::active;
+	QMbError("TimerWindow::CurrentState cant define state, wrong btn text: " + btnText);
+	return State::error;
 }
 
 void TimerWindow::RestoreBackups(const QStringList &args)
@@ -640,4 +659,22 @@ void TimerWindow::ConnectSavingWidgets()
 		QSettings stgs(settings_file, QSettings::IniFormat);
 		stgs.setValue(SettingsKeys::sound_notify_file, text);
 	});
+}
+
+void TimerWindow::UpdateFromTimeSelected() {
+	le_hours->setText(QSn(timeSelected.hour()));
+	le_minutes->setText(QSn(timeSelected.minute()));
+	le_seconds->setText(QSn(timeSelected.second()));
+
+	slider_hours->setValue(timeSelected.hour());
+	slider_minutes->setValue(timeSelected.minute());
+	slider_seconds->setValue(timeSelected.second());
+}
+
+void TimerWindow::SetEditFrom(const QTime &time) {
+	editTimeForm->setText(time.toString("HH:mm:ss"));
+}
+
+void TimerWindow::SetEditTo(const QTime &timeEnd, const QTime &timeRemain) {
+	editTimeTo->setText(timeEnd.toString("HH:mm:ss") + " (" + timeRemain.toString("HH:mm:ss") + ")");
 }
