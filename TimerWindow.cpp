@@ -349,7 +349,7 @@ void TimerWindow::Start(const QDateTime *startTime, const QDateTime *endTime)
 	endDateTime = CalcEndTime(startDateTime, timeSelected);
 
 	SetEditFrom(startDateTime.time());
-	SetWidgetsEnabled(false);
+	SetWidgetsEnabled(true);
 	btnControlTimer->setText(ButtonCaptions::off);
 
 	backupTimerCurrent = backupTimersPath + "/" + startDateTime.toString("yyyy.MM.dd hh-mm-ss-zzz") + ".txt";
@@ -463,7 +463,7 @@ void TimerWindow::ShowOnTimeOut()
 void TimerWindow::Finish(bool itIsTimeout, bool removeBackupFile)
 {
 	setWindowTitle("Timer");
-	SetWidgetsEnabled(true);
+	SetWidgetsEnabled(false);
 	btnControlTimer->setText(ButtonCaptions::on);
 
 	if(removeBackupFile)
@@ -476,20 +476,19 @@ void TimerWindow::Finish(bool itIsTimeout, bool removeBackupFile)
 	}
 }
 
-void TimerWindow::SetWidgetsEnabled(bool value)
+void TimerWindow::SetWidgetsEnabled(bool timerActiveNow)
 {
-	for(auto &w:widgets_to_enable)
-		w->setEnabled(value);
-
-	if(value)
+	if(timerActiveNow)  // если активен - дизэйблим и черный цвет
 	{
-		MyQWidget::SetTextColor_palette(editTimeForm, Qt::gray);
-		MyQWidget::SetTextColor_palette(editTimeTo, Qt::gray);
-	}
-	else
-	{
+		for(auto &w:widgets_to_enable) w->setEnabled(true);
 		MyQWidget::SetTextColor_palette(editTimeForm, Qt::black);
 		MyQWidget::SetTextColor_palette(editTimeTo, Qt::black);
+	}
+	else	// иначе - энейблим и сервый цвет
+	{
+		for(auto &w:widgets_to_enable) w->setEnabled(false);
+		MyQWidget::SetTextColor_palette(editTimeForm, Qt::gray);
+		MyQWidget::SetTextColor_palette(editTimeTo, Qt::gray);
 	}
 }
 

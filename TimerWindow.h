@@ -48,7 +48,7 @@ public:
 
 	void Finish(bool itIsTimeout, bool removeBackupFile);
 
-	void SetWidgetsEnabled(bool value);
+	void SetWidgetsEnabled(bool timerActiveNow);
 
 	void closeEvent (QCloseEvent *event) override;
 
