@@ -67,7 +67,6 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 		}
 	});
 
-
 	// включить / отключить
 	auto hlo1 = new QHBoxLayout();
 	btnControlTimer = new QPushButton(ButtonCaptions::on, this);
@@ -174,7 +173,7 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 			if(res == QMessageBox::No) return;
 		}
 
-		setWindowFlag(Qt::Tool, true);
+		hide();
 	});
 	QPushButton *btnSettings = new QPushButton("Настройки", this);
 	connect(btnSettings, &QPushButton::clicked, [this](){
@@ -307,7 +306,6 @@ void TimerWindow::CreateTrayIcon()
 
 void TimerWindow::ShowMainWindow()
 {
-	setWindowFlag(Qt::Tool,false);
 	showNormal();
 	PlatformDependent::SetTopMost(this, true);
 	PlatformDependent::SetTopMost(this, false);
