@@ -478,15 +478,15 @@ void TimerWindow::Finish(bool itIsTimeout, bool removeBackupFile)
 
 void TimerWindow::SetWidgetsEnabled(bool timerActiveNow)
 {
-	if(timerActiveNow)  // если активен - дизэйблим и черный цвет
+	if(timerActiveNow)  // если активен - дизэйблим и черный цвет в поля времени
 	{
-		for(auto &w:widgets_to_enable) w->setEnabled(true);
+		for(auto &w:widgets_to_enable) w->setEnabled(false);
 		MyQWidget::SetTextColor_palette(editTimeForm, Qt::black);
 		MyQWidget::SetTextColor_palette(editTimeTo, Qt::black);
 	}
-	else	// иначе - энейблим и сервый цвет
+	else	// иначе - энейблим и сервый цвет в поля времени
 	{
-		for(auto &w:widgets_to_enable) w->setEnabled(false);
+		for(auto &w:widgets_to_enable) w->setEnabled(true);
 		MyQWidget::SetTextColor_palette(editTimeForm, Qt::gray);
 		MyQWidget::SetTextColor_palette(editTimeTo, Qt::gray);
 	}
