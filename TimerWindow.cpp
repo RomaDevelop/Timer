@@ -302,6 +302,18 @@ void TimerWindow::CreateTrayIcon()
 	connect(icon, &QSystemTrayIcon::activated, [this](){
 		ShowMainWindow();
 	});
+
+	auto screens = QGuiApplication::screens();
+	if(screens.size() < 2) return;
+
+	auto screen2 = screens[1];
+	QPoint posOnSct2{1830,1001};
+	QPoint globalPosForIcon = screen2->geometry().topLeft() + posOnSct2;
+
+	auto addIcon = new AdditionalTrayIcon(QApplication::style()->standardIcon(QStyle::SP_BrowserReload), globalPosForIcon, this);
+	connect(addIcon, &ClickableQWidget::clicked, [this](){
+		ShowMainWindow();
+	});
 }
 
 void TimerWindow::ShowMainWindow()

@@ -15,6 +15,10 @@
 #include <QMediaPlayer>
 #include <QCheckBox>
 #include <QRadioButton>
+#include <QLocalServer>
+#include <QLocalSocket>
+
+#include "AdditionalTray.h"
 
 class TimerWindow : public QWidget
 {
@@ -104,6 +108,9 @@ private:
 	std::unique_ptr<QDialog> timeOutWidget;
 
 	std::vector<QWidget *> widgets_to_enable;
+
+	std::shared_ptr<QLocalServer> localServer;
+	std::shared_ptr<QLocalSocket> localClient;
 };
 
 #endif // TIMER_H
