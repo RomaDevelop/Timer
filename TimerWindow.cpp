@@ -327,6 +327,8 @@ void TimerWindow::SlotControlTimer()
 {
 	if(CurrentState() == State::notActive)
 	{
+		if(rBtnOverTime->isChecked() && timeSelected == QTime(0,0,0)) return;
+
 		Start();
 	}
 	else if(CurrentState() == State::active)
