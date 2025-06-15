@@ -152,12 +152,17 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 	auto hlo7 = new QHBoxLayout();
 	mainLayOut->addLayout(hlo7);
 	QLabel *labelDesribtion = new QLabel("Описание");
-	editDesribtion = new QLineEdit;
+	editDescribtion = new QLineEdit;
 	hlo7->addWidget(labelDesribtion);
-	hlo7->addWidget(editDesribtion);
-	connect(editDesribtion, &QLineEdit::textChanged, [this](const QString &){
+	hlo7->addWidget(editDescribtion);
+	connect(editDescribtion, &QLineEdit::textChanged, [this](const QString &text){
 		if(0) CodeMarkers::to_do("сделать механизм отложенной записи, причем чтобы записывало не на каждую букву,"
 								 "а чтобы записывал уже по окончанию редактирования");
+
+		editDescribtionIsEmpty = text.isEmpty();
+
+		SetTitleAntToolTip();
+
 		if(CurrentState() == State::active)
 			WriteBackup();
 	});
@@ -395,7 +400,7 @@ void TimerWindow::WriteBackup()
 	contentToWrite += "\n";
 	contentToWrite += endDateTime.toString("yyyy.MM.dd hh-mm-ss-zzz");
 	contentToWrite += "\n";
-	contentToWrite += editDesribtion->text();
+	contentToWrite += editDescribtion->text();
 	if(!MyQFileDir::WriteFile(backupTimerCurrent, contentToWrite))
 		QMbc(0,"error","error write file [" + backupTimerCurrent + "]");
 }
@@ -410,6 +415,8 @@ void TimerWindow::SlotTick()
 	{
 		TickWhenActive();
 	}
+
+	SetTitleAntToolTip();
 }
 
 void TimerWindow::TickWhenNotActive()
@@ -430,21 +437,7 @@ void TimerWindow::TickWhenActive()
 	{
 		auto remainTime = GetReaminTime(QDateTime::currentDateTime(), endDateTime);
 		SetEditTo(endDateTime.time(), remainTime);
-
-		QString title = remainTime.toString("HH:mm:ss");
-		title += " ";
-		title += editDesribtion->text();
-		setWindowTitle(title);
 	}
-
-	QString toolTip = windowTitle();
-	QString text = editDesribtion->text();
-	if(!text.isEmpty())
-	{
-		toolTip += " ";
-		toolTip += text;
-	}
-	icon->setToolTip(toolTip);
 }
 
 QTime TimerWindow::GetReaminTime(const QDateTime &from, const QDateTime &to)
@@ -542,7 +535,7 @@ void TimerWindow::RestoreBackups(const QStringList &args)
 		if(contentsList.size() != 5) QMbError("wrong size " + contentsList.join("\n"));
 		else
 		{
-			editDesribtion->setText(contentsList[4]);
+			editDescribtion->setText(contentsList[4]);
 			auto start = QDateTime::fromString(contentsList[2], "yyyy.MM.dd hh-mm-ss-zzz");
 			auto end = QDateTime::fromString(contentsList[3], "yyyy.MM.dd hh-mm-ss-zzz");
 			Start(&start, &end);
@@ -704,4 +697,29 @@ void TimerWindow::SetEditFrom(const QTime &time) {
 
 void TimerWindow::SetEditTo(const QTime &timeEnd, const QTime &timeRemain) {
 	editTimeTo->setText(timeEnd.toString("HH:mm:ss") + " (" + timeRemain.toString("HH:mm:ss") + ")");
+}
+
+void TimerWindow::SetTitleAntToolTip()
+{
+	QString title;
+	QString toolTip;
+	if(CurrentState() == State::active)
+	{
+		title = GetReaminTime(QDateTime::currentDateTime(), endDateTime).toString("HH:mm:ss");
+		toolTip = "Timer " + GetReaminTime(QDateTime::currentDateTime(), endDateTime).toString("HH:mm:ss");
+		if(editDescribtionIsEmpty) title += " - Timer";
+		else
+		{
+			title.append(" ").append(editDescribtion->text()).append(" - Timer");
+			toolTip.append(" ").append(editDescribtion->text());
+		}
+	}
+	else
+	{
+		title = "Timer " + editDescribtion->text();
+		toolTip = title;
+	}
+
+	setWindowTitle(title);
+	icon->setToolTip(toolTip);
 }

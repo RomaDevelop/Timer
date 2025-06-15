@@ -100,7 +100,9 @@ private:
 	QLineEdit *editTimeTo;
 	void SetEditTo(const QTime &timeEnd, const QTime &timeRemain);
 
-	QLineEdit *editDesribtion;
+	QLineEdit *editDescribtion;
+	bool editDescribtionIsEmpty = true;
+	void SetTitleAntToolTip();
 
 	QTimer *timerForActiveChecker;
 	QMediaPlayer *player;
