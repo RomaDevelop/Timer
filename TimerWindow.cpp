@@ -503,14 +503,14 @@ void TimerWindow::closeEvent(QCloseEvent *event)
 	{
 		auto answ = MyQDialogs::CustomDialog("Timer is active", "You are closing active timer. Choose action:"
 											 "\n\n(choose Close and save backup and you can restore current timer at next launch)",
-											 {"Close", "Close and save backup", "Abort close"});
-		if(answ == "Close") { Finish(false, true); event->accept(); }
+											 {"Close, don't save", "Close and save backup", "Abort close"});
+		if(answ == "Close, don't save") { Finish(false, true); event->accept(); }
 		else if(answ == "Close and save backup") { Finish(false, false); event->accept(); }
 		else if(answ == "Abort close") { event->ignore(); return; }
 		else QMessageBox::critical(this, "", "unrealesed button");
 	}
 
-	QApplication::quit(); // потому что если окно побывало Tool приложение не закрывается
+	QApplication::quit(); // потому что если окно побывало Tool, приложение не закрывается
 }
 
 TimerWindow::State TimerWindow::CurrentState()
