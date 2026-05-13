@@ -580,7 +580,7 @@ void TimerWindow::RestoreBackups(const QStringList &args)
 				if(rRes.success)
 				{
 					if(!QFile(fileInfo.filePath()).remove()) QMbError("can't remove");
-					MyQDialogs::ShowText(rRes.content);
+					MyQDialogs::ShowText("", rRes.content);
 				}
 				else QMbError("can't read, will not remove");
 			}
