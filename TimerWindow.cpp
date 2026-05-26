@@ -297,35 +297,23 @@ void TimerWindow::CreateTimoutWidget()
 
 void TimerWindow::CreateTrayIcon()
 {
-	if(icon)
-		QMbc(this,"Error","CreateTrayIcon multiple times");
+	if(icon) QMbc(this, "Error", "CreateTrayIcon multiple times");
 
 	icon = new QSystemTrayIcon(this);
 	icon->setIcon(QApplication::style()->standardIcon(QStyle::SP_BrowserReload));
 	icon->setToolTip("Timer");
 	icon->show();
-	connect(icon, &QSystemTrayIcon::activated, [this](){
-		ShowMainWindow();
-	});
+	connect(icon, &QSystemTrayIcon::activated, [this](){ ShowMainWindow(); });
 
-	auto screens = QGuiApplication::screens();
-	if(screens.size() < 2) return;
-
-	auto screen2 = screens[1];
-	QPoint posOnSct2{1830,1001};
-	QPoint globalPosForIcon = screen2->geometry().topLeft() + posOnSct2;
-
-	auto addIcon = new AdditionalTrayIcon(QApplication::style()->standardIcon(QStyle::SP_BrowserReload), globalPosForIcon, this);
-	connect(addIcon, &ClickableQWidget::clicked, [this](){
-		ShowMainWindow();
-	});
+	additionalTrayIcon = std::make_unique<AdditionalTrayIcon>(QApplication::style()->standardIcon(QStyle::SP_BrowserReload));
+	AdditionalTrayIcon *additionalTrayIconPtr = static_cast<AdditionalTrayIcon*>(additionalTrayIcon.get());
+	connect(additionalTrayIconPtr, &AdditionalTrayIcon::clicked, this, [this](){ ShowMainWindow(); });
 }
 
 void TimerWindow::ShowMainWindow()
 {
-	showNormal();
-	PlatformDependent::SetTopMost(this, true);
-	PlatformDependent::SetTopMost(this, false);
+	MyQWidget::ShowExtended(this, true);
+	PlatformDependent::SetTopMostFlash(this); // на передний план (нужно если не было свернуто)
 }
 
 void TimerWindow::SlotControlTimer()

@@ -15,8 +15,6 @@
 #include <QMediaPlayer>
 #include <QCheckBox>
 #include <QRadioButton>
-#include <QLocalServer>
-#include <QLocalSocket>
 
 #include "AdditionalTray.h"
 
@@ -111,8 +109,7 @@ private:
 
 	std::vector<QWidget *> widgets_to_enable;
 
-	std::shared_ptr<QLocalServer> localServer;
-	std::shared_ptr<QLocalSocket> localClient;
+	std::unique_ptr<QWidget> additionalTrayIcon;
 };
 
 #endif // TIMER_H
