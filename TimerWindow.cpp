@@ -161,7 +161,7 @@ TimerWindow::TimerWindow(QStringList args, QWidget *parent)
 
 		editDescribtionIsEmpty = text.isEmpty();
 
-		SetTitleAntToolTip();
+		SetTitleAndToolTip();
 
 		if(CurrentState() == State::active)
 			WriteBackup();
@@ -404,7 +404,7 @@ void TimerWindow::SlotTick()
 		TickWhenActive();
 	}
 
-	SetTitleAntToolTip();
+	SetTitleAndToolTip();
 }
 
 void TimerWindow::TickWhenNotActive()
@@ -467,7 +467,7 @@ void TimerWindow::Finish(bool itIsTimeout, bool removeBackupFile)
 		ShowOnTimeOut();
 	}
 
-	SetTitleAntToolTip();
+	SetTitleAndToolTip();
 }
 
 void TimerWindow::SetWidgetsEnabled(bool timerActiveNow)
@@ -688,14 +688,17 @@ void TimerWindow::SetEditTo(const QTime &timeEnd, const QTime &timeRemain) {
 	editTimeTo->setText(timeEnd.toString("HH:mm:ss") + " (" + timeRemain.toString("HH:mm:ss") + ")");
 }
 
-void TimerWindow::SetTitleAntToolTip()
+void TimerWindow::SetTitleAndToolTip()
 {
+	static QString prevTitle;
+	static QString prevToolTip;
 	QString title;
 	QString toolTip;
 	if(CurrentState() == State::active)
 	{
 		title = GetReaminTime(QDateTime::currentDateTime(), endDateTime).toString("HH:mm:ss");
-		toolTip = "Timer " + GetReaminTime(QDateTime::currentDateTime(), endDateTime).toString("HH:mm:ss");
+		toolTip = GetReaminTime(QDateTime::currentDateTime(), endDateTime).toString("HH:mm:ss");
+		toolTip.prepend("Timer ");
 		if(editDescribtionIsEmpty) title += " - Timer";
 		else
 		{
@@ -705,11 +708,21 @@ void TimerWindow::SetTitleAntToolTip()
 	}
 	else
 	{
-		title = "Timer " + editDescribtion->text();
+		title = editDescribtion->text();
+		title.prepend("Timer ");
 		toolTip = title;
 	}
 
-	setWindowTitle(title);
-	icon->setToolTip(toolTip);
-	additionalTrayIcon->setToolTip(toolTip);
+	if(title != prevTitle)
+	{
+		setWindowTitle(title);
+		prevTitle = std::move(title);
+	}
+
+	if(toolTip != prevToolTip)
+	{
+		icon->setToolTip(toolTip);
+		additionalTrayIcon->setToolTip(toolTip);
+		prevToolTip = std::move(toolTip);
+	}
 }

@@ -100,7 +100,7 @@ private:
 
 	QLineEdit *editDescribtion;
 	bool editDescribtionIsEmpty = true;
-	void SetTitleAntToolTip();
+	void SetTitleAndToolTip();
 
 	QTimer *timerForActiveChecker;
 	QMediaPlayer *player;
