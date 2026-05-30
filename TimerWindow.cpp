@@ -301,12 +301,12 @@ void TimerWindow::CreateTrayIcon()
 
 	icon = new QSystemTrayIcon(this);
 	icon->setIcon(QApplication::style()->standardIcon(QStyle::SP_BrowserReload));
-	icon->setToolTip("Timer");
 	icon->show();
 	connect(icon, &QSystemTrayIcon::activated, [this](){ ShowMainWindow(); });
 
 	additionalTrayIcon = std::make_unique<AdditionalTrayIcon>(QApplication::style()->standardIcon(QStyle::SP_BrowserReload));
 	AdditionalTrayIcon *additionalTrayIconPtr = static_cast<AdditionalTrayIcon*>(additionalTrayIcon.get());
+
 	connect(additionalTrayIconPtr, &AdditionalTrayIcon::clicked, this, [this](){ ShowMainWindow(); });
 }
 
@@ -455,7 +455,6 @@ void TimerWindow::ShowOnTimeOut()
 
 void TimerWindow::Finish(bool itIsTimeout, bool removeBackupFile)
 {
-	setWindowTitle("Timer");
 	SetWidgetsEnabled(false);
 	btnControlTimer->setText(ButtonCaptions::on);
 
@@ -467,6 +466,8 @@ void TimerWindow::Finish(bool itIsTimeout, bool removeBackupFile)
 		PlaySound();
 		ShowOnTimeOut();
 	}
+
+	SetTitleAntToolTip();
 }
 
 void TimerWindow::SetWidgetsEnabled(bool timerActiveNow)
@@ -710,4 +711,5 @@ void TimerWindow::SetTitleAntToolTip()
 
 	setWindowTitle(title);
 	icon->setToolTip(toolTip);
+	additionalTrayIcon->setToolTip(toolTip);
 }
